@@ -10,7 +10,7 @@
 
 需要准备的：
 
-1. 申请一个**OpenAi  API key **,  从[openai platform](https://platform.openai.com/account/api-keys) 生成
+1. 申请一个**OpenAi  API key**,  从[openai platform](https://platform.openai.com/account/api-keys) 生成
 
 2. 获取钉钉机器人token 
 
