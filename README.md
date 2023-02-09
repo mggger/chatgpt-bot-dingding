@@ -10,7 +10,7 @@
 
 需要准备的：
 
-1. 申请一个**OpenAi  API key **,  从[openai platform](https://platform.openai.com/account/api-keys) 生成
+1. 申请一个**OpenAi  API key**,  从[openai platform](https://platform.openai.com/account/api-keys) 生成
 
 2. 获取钉钉机器人token 
 
@@ -40,7 +40,7 @@
 pip3 install -r requirements.txt
 ```
 
-2. 启动程序， 将**${openai_xx}**替换openai api key,  **${dd_xx}**替换钉钉的token
+2. 启动程序， 将``${openai_xx}`` 替换openai api key,  ``${dd_xx}`` 替换钉钉的token
 
 ```shell
 API_KEY=${openai_xx} DD_TOKEN=${dd_xx} python3 main.py
@@ -52,7 +52,7 @@ API_KEY=${openai_xx} DD_TOKEN=${dd_xx} python3 main.py
 
 ### Docker启动
 
-将**${openai_xx}**替换openai api key,  **${dd_xx}**替换钉钉的token
+将 ``${openai_xx}`` 替换openai api key, ``${dd_xx}`` 替换钉钉的token
 
 ```shell
 docker run -p 8080:8080 -e API_KEY=${openai_xx} -e DD_TOKEN=${dd_xx} -d registry.cn-hangzhou.aliyuncs.com/public_mgg/chatgpt:latest
