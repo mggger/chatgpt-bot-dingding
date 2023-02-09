@@ -14,12 +14,13 @@ dd_token = os.environ.get("DD_TOKEN")
 # Set up the model and prompt
 model_engine = "text-davinci-003"
 
+retry_times = 5
 
 @route("/")
 class ChatgptHandler(tornado.web.RequestHandler):
 
     def get(self):
-        return self.write_jsonp({"ret": 200})
+        return self.write_json({"ret": 200})
 
     def post(self):
 
@@ -27,15 +28,22 @@ class ChatgptHandler(tornado.web.RequestHandler):
         data = json.loads(request_data)
         prompt = data['text']['content']
 
-        completion = openai.Completion.create(
-            engine=model_engine,
-            prompt=prompt,
-            max_tokens=1024,
-            n=1,
-            stop=None,
-            temperature=0.5,
-        )
-        response = completion.choices[0].text
+        for i in range(retry_times):
+            try:
+                completion = openai.Completion.create(
+                    engine=model_engine,
+                    prompt=prompt,
+                    max_tokens=1024,
+                    n=1,
+                    stop=None,
+                    temperature=0.5,
+                )
+                response = completion.choices[0].text
+                break
+            except:
+                logger.info(f"failed, retry")
+                continue
+
         logger.info(f"parse response: {response}")
         self.notify_dingding(response)
         return self.write_json({"ret": 200})
