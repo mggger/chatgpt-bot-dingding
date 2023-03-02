@@ -50,10 +50,9 @@ class ChatgptHandler(tornado.web.RequestHandler):
 
     def notify_dingding(self, answer):
         data = {
-            "msgtype": "markdown",
-            "markdown": {
-                "title": "chatgpt: ",
-                "text": answer
+            "msgtype": "text",
+            "text": {
+                "content": answer
             },
 
             "at": {
