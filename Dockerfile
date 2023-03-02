@@ -1,4 +1,4 @@
-FROM python:3.6
+FROM python:3.7
 
 USER root
 
@@ -6,6 +6,7 @@ WORKDIR /app
 
 ADD . /app
 
-RUN pip install -r requirements.txt -i https://pypi.douban.com/simple/
+#RUN python -m pip install --upgrade pip
+RUN pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 CMD ["python", "main.py"]

@@ -12,7 +12,7 @@ openai.api_key = os.environ.get("API_KEY")
 dd_token = os.environ.get("DD_TOKEN")
 
 # Set up the model and prompt
-model_engine = "text-davinci-003"
+model_engine = "gpt-3.5-turbo"
 
 retry_times = 5
 
@@ -30,15 +30,11 @@ class ChatgptHandler(tornado.web.RequestHandler):
 
         for i in range(retry_times):
             try:
-                completion = openai.Completion.create(
-                    engine=model_engine,
-                    prompt=prompt,
-                    max_tokens=1024,
-                    n=1,
-                    stop=None,
-                    temperature=0.5,
+                completion = openai.ChatCompletion.create(
+                    model=model_engine,
+                    messages = [{"role": "user", "content": prompt}],
                 )
-                response = completion.choices[0].text
+                response = completion.choices[0].message.content
                 break
             except:
                 logger.info(f"failed, retry")
