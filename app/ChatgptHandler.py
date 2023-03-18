@@ -7,6 +7,7 @@ import openai
 import tornado.web
 import os
 import requests
+import traceback
 
 openai.api_key = os.environ.get("API_KEY")
 dd_token = os.environ.get("DD_TOKEN")
@@ -16,6 +17,9 @@ model_engine = "gpt-3.5-turbo"
 
 retry_times = 5
 
+global_dict = {}
+
+
 @route("/")
 class ChatgptHandler(tornado.web.RequestHandler):
 
@@ -24,25 +28,63 @@ class ChatgptHandler(tornado.web.RequestHandler):
 
     def post(self):
 
-        request_data = self.request.body;
+        request_data = self.request.body
         data = json.loads(request_data)
         prompt = data['text']['content']
+        if (prompt == '/clear'):
+            self.clearContext(data)
+            self.notify_dingding('已清空上下文')
+            return self.write_json({"ret": 200})
 
         for i in range(retry_times):
             try:
+                context = self.getContext(data)
+                newContext = [
+                    {"role": "user", "content": prompt}]
                 completion = openai.ChatCompletion.create(
                     model=model_engine,
-                    messages = [{"role": "user", "content": prompt}],
+                    messages=list(zip(context, newContext)),
                 )
                 response = completion.choices[0].message.content
+                usage = completion.usage
                 break
             except:
+                traceback.print_exc()
                 logger.info(f"failed, retry")
                 continue
 
         logger.info(f"parse response: {response}")
-        self.notify_dingding(response)
+        self.setContext(data, response, usage)
+        self.notify_dingding(
+            response + '\n' + '-=-=-=-=-=-=-=-=-=' + '\n' + '本次对话 Tokens 用量 [' + usage.total_tokens + '/4096]')
+        if (usage.total_tokens > 4096):
+            self.clearContext(data)
+            self.notify_dingding('超出 Tokens 限制，清空上下文')
         return self.write_json({"ret": 200})
+
+    def getContext(self, data):
+        storeKey = self.getContextKey(data)
+        if (global_dict.get(storeKey) is None):
+            global_dict[storeKey] = []
+        return global_dict[storeKey]
+
+    def getContextKey(self, data):
+        conversationId = data['conversationId']
+        senderId = data['senderId']
+        return conversationId + '@' + senderId
+
+    def setContext(self, data, response):
+        prompt = data['text']['content']
+        storeKey = self.getContextKey(data)
+        if (global_dict.get(storeKey) is None):
+            global_dict[storeKey] = []
+        global_dict[storeKey].append({"role": "user", "content": prompt})
+        global_dict[storeKey].append(
+            {"role": "assistant", "content": response})
+
+    def clearContext(self, data):
+        storeKey = self.getContextKey(data)
+        global_dict[storeKey] = []
 
     def write_json(self, struct):
         self.set_header("Content-Type", "application/json; charset=UTF-8")
