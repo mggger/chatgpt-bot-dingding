@@ -27,40 +27,44 @@ class ChatgptHandler(tornado.web.RequestHandler):
         return self.write_json({"ret": 200})
 
     def post(self):
+        try:
+            request_data = self.request.body
+            data = json.loads(request_data)
+            prompt = data['text']['content']
+            if (prompt == '/clear'):
+                self.clearContext(data)
+                self.notify_dingding('已清空上下文')
+                return self.write_json({"ret": 200})
 
-        request_data = self.request.body
-        data = json.loads(request_data)
-        prompt = data['text']['content']
-        if (prompt == '/clear'):
-            self.clearContext(data)
-            self.notify_dingding('已清空上下文')
+            for i in range(retry_times):
+                try:
+                    context = self.getContext(data)
+                    newContext = [
+                        {"role": "user", "content": prompt}]
+                    print(context + newContext)
+                    completion = openai.ChatCompletion.create(
+                        model=model_engine,
+                        messages=context + newContext,
+                    )
+                    response = completion.choices[0].message.content
+                    usage = completion.usage
+                    break
+                except:
+                    traceback.print_exc()
+                    logger.info(f"failed, retry")
+                    continue
+
+            logger.info(f"parse response: {response}")
+            self.setContext(data, response)
+            self.notify_dingding(
+                response + '\n' + '-=-=-=-=-=-=-=-=-=' + '\n' + '本次对话 Tokens 用量 [' + str(usage.total_tokens) + '/4096]')
+            if (usage.total_tokens > 4096):
+                self.clearContext(data)
+                self.notify_dingding('超出 Tokens 限制，清空上下文')
             return self.write_json({"ret": 200})
-
-        for i in range(retry_times):
-            try:
-                context = self.getContext(data)
-                newContext = [
-                    {"role": "user", "content": prompt}]
-                completion = openai.ChatCompletion.create(
-                    model=model_engine,
-                    messages=list(zip(context, newContext)),
-                )
-                response = completion.choices[0].message.content
-                usage = completion.usage
-                break
-            except:
-                traceback.print_exc()
-                logger.info(f"failed, retry")
-                continue
-
-        logger.info(f"parse response: {response}")
-        self.setContext(data, response, usage)
-        self.notify_dingding(
-            response + '\n' + '-=-=-=-=-=-=-=-=-=' + '\n' + '本次对话 Tokens 用量 [' + usage.total_tokens + '/4096]')
-        if (usage.total_tokens > 4096):
-            self.clearContext(data)
-            self.notify_dingding('超出 Tokens 限制，清空上下文')
-        return self.write_json({"ret": 200})
+        except:
+            traceback.print_exc()
+            return self.write_json({"ret": 500})
 
     def getContext(self, data):
         storeKey = self.getContextKey(data)
