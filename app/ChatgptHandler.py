@@ -32,13 +32,13 @@ class ChatgptHandler(tornado.web.RequestHandler):
             data = json.loads(request_data)
             prompt = data['text']['content']
             if (prompt == '/clear'):
-                self.clearContext(data)
+                self.clear_context(data)
                 self.notify_dingding('已清空上下文')
                 return self.write_json({"ret": 200})
 
             for i in range(retry_times):
                 try:
-                    context = self.getContext(data)
+                    context = self.get_context(data)
                     new_context = [
                         {"role": "user", "content": prompt}]
                     completion = openai.ChatCompletion.create(
@@ -54,39 +54,39 @@ class ChatgptHandler(tornado.web.RequestHandler):
                     continue
 
             logger.info(f"parse response: {response}")
-            self.setContext(data, response)
+            self.set_context(data, response)
             self.notify_dingding(
                 response + '\n' + '-=-=-=-=-=-=-=-=-=' + '\n' + '本次对话 Tokens 用量 [' + str(usage.total_tokens) + '/4096]')
             if (usage.total_tokens > 4096):
-                self.clearContext(data)
+                self.clear_context(data)
                 self.notify_dingding('超出 Tokens 限制，清空上下文')
             return self.write_json({"ret": 200})
         except:
             traceback.print_exc()
             return self.write_json({"ret": 500})
 
-    def getContext(self, data):
-        storeKey = self.getContextKey(data)
+    def get_context(self, data):
+        storeKey = self.get_context_key(data)
         if (global_dict.get(storeKey) is None):
             global_dict[storeKey] = []
         return global_dict[storeKey]
 
-    def getContextKey(self, data):
+    def get_context_key(self, data):
         conversation_id = data['conversationId']
         sender_id = data['senderId']
         return conversation_id + '@' + sender_id
 
-    def setContext(self, data, response):
+    def set_context(self, data, response):
         prompt = data['text']['content']
-        storeKey = self.getContextKey(data)
+        storeKey = self.get_context_key(data)
         if (global_dict.get(storeKey) is None):
             global_dict[storeKey] = []
         global_dict[storeKey].append({"role": "user", "content": prompt})
         global_dict[storeKey].append(
             {"role": "assistant", "content": response})
 
-    def clearContext(self, data):
-        store_key = self.getContextKey(data)
+    def clear_context(self, data):
+        store_key = self.get_context_key(data)
         global_dict[store_key] = []
 
     def write_json(self, struct):
