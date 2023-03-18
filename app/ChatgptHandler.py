@@ -7,6 +7,7 @@ import openai
 import tornado.web
 import os
 import requests
+import traceback
 
 openai.api_key = os.environ.get("API_KEY")
 dd_token = os.environ.get("DD_TOKEN")
@@ -16,6 +17,9 @@ model_engine = "gpt-3.5-turbo"
 
 retry_times = 5
 
+global_dict = {}
+
+
 @route("/")
 class ChatgptHandler(tornado.web.RequestHandler):
 
@@ -23,26 +27,67 @@ class ChatgptHandler(tornado.web.RequestHandler):
         return self.write_json({"ret": 200})
 
     def post(self):
+        try:
+            request_data = self.request.body
+            data = json.loads(request_data)
+            prompt = data['text']['content']
+            if "/clear" in prompt:
+                self.clear_context(data)
+                self.notify_dingding('已清空上下文')
+                return self.write_json({"ret": 200})
 
-        request_data = self.request.body;
-        data = json.loads(request_data)
+            for i in range(retry_times):
+                try:
+                    context = self.get_context(data)
+                    new_context = [
+                        {"role": "user", "content": prompt}]
+                    completion = openai.ChatCompletion.create(
+                        model=model_engine,
+                        messages=context + new_context,
+                    )
+                    response = completion.choices[0].message.content
+                    usage = completion.usage
+                    break
+                except:
+                    traceback.print_exc()
+                    logger.info(f"failed, retry")
+                    continue
+
+            logger.info(f"parse response: {response}")
+            self.set_context(data, response)
+            self.notify_dingding(
+                response + '\n' + '-=-=-=-=-=-=-=-=-=' + '\n' + '本次对话 Tokens 用量 [' + str(usage.total_tokens) + '/4096]')
+            if (usage.total_tokens >= 4096):
+                self.clear_context(data)
+                self.notify_dingding('超出 Tokens 限制，清空上下文')
+            return self.write_json({"ret": 200})
+        except:
+            traceback.print_exc()
+            return self.write_json({"ret": 500})
+
+    def get_context(self, data):
+        storeKey = self.get_context_key(data)
+        if (global_dict.get(storeKey) is None):
+            global_dict[storeKey] = []
+        return global_dict[storeKey]
+
+    def get_context_key(self, data):
+        conversation_id = data['conversationId']
+        sender_id = data['senderId']
+        return conversation_id + '@' + sender_id
+
+    def set_context(self, data, response):
         prompt = data['text']['content']
+        storeKey = self.get_context_key(data)
+        if (global_dict.get(storeKey) is None):
+            global_dict[storeKey] = []
+        global_dict[storeKey].append({"role": "user", "content": prompt})
+        global_dict[storeKey].append(
+            {"role": "assistant", "content": response})
 
-        for i in range(retry_times):
-            try:
-                completion = openai.ChatCompletion.create(
-                    model=model_engine,
-                    messages = [{"role": "user", "content": prompt}],
-                )
-                response = completion.choices[0].message.content
-                break
-            except:
-                logger.info(f"failed, retry")
-                continue
-
-        logger.info(f"parse response: {response}")
-        self.notify_dingding(response)
-        return self.write_json({"ret": 200})
+    def clear_context(self, data):
+        store_key = self.get_context_key(data)
+        global_dict[store_key] = []
 
     def write_json(self, struct):
         self.set_header("Content-Type", "application/json; charset=UTF-8")
