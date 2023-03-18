@@ -39,12 +39,11 @@ class ChatgptHandler(tornado.web.RequestHandler):
             for i in range(retry_times):
                 try:
                     context = self.getContext(data)
-                    newContext = [
+                    new_context = [
                         {"role": "user", "content": prompt}]
-                    print(context + newContext)
                     completion = openai.ChatCompletion.create(
                         model=model_engine,
-                        messages=context + newContext,
+                        messages=context + new_context,
                     )
                     response = completion.choices[0].message.content
                     usage = completion.usage
@@ -73,9 +72,9 @@ class ChatgptHandler(tornado.web.RequestHandler):
         return global_dict[storeKey]
 
     def getContextKey(self, data):
-        conversationId = data['conversationId']
-        senderId = data['senderId']
-        return conversationId + '@' + senderId
+        conversation_id = data['conversationId']
+        sender_id = data['senderId']
+        return conversation_id + '@' + sender_id
 
     def setContext(self, data, response):
         prompt = data['text']['content']
@@ -87,8 +86,8 @@ class ChatgptHandler(tornado.web.RequestHandler):
             {"role": "assistant", "content": response})
 
     def clearContext(self, data):
-        storeKey = self.getContextKey(data)
-        global_dict[storeKey] = []
+        store_key = self.getContextKey(data)
+        global_dict[store_key] = []
 
     def write_json(self, struct):
         self.set_header("Content-Type", "application/json; charset=UTF-8")
