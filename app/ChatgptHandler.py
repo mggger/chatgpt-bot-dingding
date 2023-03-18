@@ -57,7 +57,7 @@ class ChatgptHandler(tornado.web.RequestHandler):
             self.set_context(data, response)
             self.notify_dingding(
                 response + '\n' + '-=-=-=-=-=-=-=-=-=' + '\n' + '本次对话 Tokens 用量 [' + str(usage.total_tokens) + '/4096]')
-            if (usage.total_tokens > 4096):
+            if (usage.total_tokens >= 4096):
                 self.clear_context(data)
                 self.notify_dingding('超出 Tokens 限制，清空上下文')
             return self.write_json({"ret": 200})
